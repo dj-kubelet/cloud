@@ -6,6 +6,10 @@ apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
 - role: control-plane
 - role: worker
+  extraPortMappings:
+  - containerPort: 30443
+    hostPort: 30443
+    protocol: TCP
 
 networking:
   # WARNING: It is _strongly_ recommended that you keep this the default
@@ -22,5 +26,6 @@ kubeadmConfigPatches:
   kind: ClusterConfiguration
   apiServer:
     certSANs:
+    - "127.0.0.1"
     - "k8s.dj-kubelet.com"
     - "k8s-local.dj-kubelet.com"
