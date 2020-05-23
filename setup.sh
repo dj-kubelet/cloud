@@ -32,6 +32,7 @@ install_k8s() {
     apt-get update -y
     apt-get install -y kubectl
     apt-mark hold kubectl
+    kubectl completion bash >/etc/bash_completion.d/kubectl
 }
 install_k8s
 
