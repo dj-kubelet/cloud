@@ -11,6 +11,7 @@ apt-get install -y \
     software-properties-common \
     gnupg2 \
     golang-cfssl \
+    certbot \
     curl \
     git \
     jq

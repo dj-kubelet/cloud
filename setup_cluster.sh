@@ -15,7 +15,11 @@ main() {
 
     cd "$dj_kubelet_repo_root/console"
     create_prod_overlay
+    create_server_cert_selfsigned
+    #create_server_cert_letsencrypt
+
     kubectl create namespace console
+    # TODO check for client id and secret here
     # Create CLIENT_ID and CLIENT_SECRET in envfile before applying
     #kubectl apply -k ./prod
     #kubectl -n console get pods
@@ -25,13 +29,24 @@ rand_32() {
     head -c100 /dev/urandom | base64 | head -c32
 }
 
-create_prod_overlay() {
-    mkdir -p ./prod
+create_server_cert_letsencrypt() {
+    certbot certonly --standalone -d "$console_base_url_hostname"
+    local cert_dir="/etc/letsencrypt/live/$console_base_url_hostname/"
+    ls -l "$cert_dir"
+    ln -s "$cert_dir/fullchain.pem" prod/server.pem
+    ln -s "$cert_dir/privkey.pem" prod/server-key.pem
 
-    # Create server certs
+}
+
+create_server_cert_selfsigned() {
     cfssl selfsign localhost <(cfssl print-defaults csr) | cfssljson -bare prod/server
+}
 
-    cat >./prod/kustomization.yaml <<EOF
+create_prod_overlay() {
+    local overlay_dir="$dj_kubelet_repo_root/console/prod"
+    mkdir -p "$overlay_dir"
+
+    cat >"$overlay_dir/kustomization.yaml" <<EOF
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 bases:
@@ -54,7 +69,7 @@ patchesStrategicMerge:
 - deployment-patch.yaml
 EOF
 
-    cat >./prod/deployment-patch.yaml <<EOF
+    cat >"$overlay_dir/deployment-patch.yaml" <<EOF
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -72,7 +87,8 @@ spec:
             - --key-file=/etc/tls/tls.key
 EOF
 
-    cat >>./prod/envfile <<EOF
+    # TODO only write these if missing
+    cat >>"$overlay_dir/envfile" <<EOF
 COOKIE_STORE_AUTH_KEY=$(rand_32)
 COOKIE_STORE_ENCRYPTION_KEY=$(rand_32)
 EOF
