@@ -4,13 +4,14 @@ set -euo pipefail
 dj_kubelet_repo_root="/var/lib/dj-kubelet"
 console_base_url_hostname="console.dj-kubelet.com"
 apiserver_hostname="k8s.dj-kubelet.com"
+certbot_flags="--register-unsafely-without-email --no-eff-email"
 
 main() {
     # Spin up Kubernetes with Kind
-    kind create cluster --name dj-kubelet --config "$dj_kubelet_repo_root/cloud/kind-config.yaml"
+    kind create cluster --name dj-kubelet --config "$dj_kubelet_repo_root/cloud/kind-config.yaml" || true
 
     # Prep dj-controller CRDs and templates
-    kubectl create namespace dj-controller
+    kubectl create namespace dj-controller || true
     kubectl apply -n dj-controller -f "$dj_kubelet_repo_root/dj-controller/k8s/"
 
     cd "$dj_kubelet_repo_root/console"
@@ -23,6 +24,9 @@ main() {
     # Create CLIENT_ID and CLIENT_SECRET in envfile before applying
     #kubectl apply -k ./prod
     #kubectl -n console get pods
+
+    # Forward apiserver
+    # socat TCP-LISTEN:6443,fork,bind=10.0.0.x TCP:127.0.0.1:6443 &
 }
 
 rand_32() {
@@ -30,7 +34,8 @@ rand_32() {
 }
 
 create_server_cert_letsencrypt() {
-    certbot certonly --standalone -d "$console_base_url_hostname"
+    # TODO Error if DNS record is not pointing to ext ip
+    certbot certonly --standalone $certbot_flags -d "$console_base_url_hostname"
     local cert_dir="/etc/letsencrypt/live/$console_base_url_hostname/"
     ls -l "$cert_dir"
     ln -s "$cert_dir/fullchain.pem" prod/server.pem
