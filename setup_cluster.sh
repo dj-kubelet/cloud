@@ -10,23 +10,31 @@ main() {
     # Spin up Kubernetes with Kind
     kind create cluster --name dj-kubelet --config "$dj_kubelet_repo_root/cloud/kind-config.yaml" || true
 
+    # TODO Error if DNS record is not pointing to ext ip
+
     # Prep dj-controller CRDs and templates
     kubectl create namespace dj-controller || true
     kubectl apply -n dj-controller -f "$dj_kubelet_repo_root/dj-controller/k8s/"
 
-    cd "$dj_kubelet_repo_root/console"
-    create_prod_overlay
-    create_server_cert_selfsigned
-    #create_server_cert_letsencrypt
+    (
+        # Deploy console
+        cd "$dj_kubelet_repo_root/console"
+        create_console_prod_overlay
+        kubectl create namespace console || true
+        #kubectl apply -k ./prod
+        #kubectl -n console get pods
 
-    kubectl create namespace console
-    # TODO check for client id and secret here
-    # Create CLIENT_ID and CLIENT_SECRET in envfile before applying
-    #kubectl apply -k ./prod
-    #kubectl -n console get pods
+        # Forward apiserver
+        # socat TCP-LISTEN:6443,fork,bind=10.0.0.x TCP:127.0.0.1:6443 &
+    )
 
-    # Forward apiserver
-    # socat TCP-LISTEN:6443,fork,bind=10.0.0.x TCP:127.0.0.1:6443 &
+    (
+        # Deploy oauth-refresher
+        cd "$dj_kubelet_repo_root/oauth-refresher"
+        create_oauth_refresher_prod_overlay
+        kubectl create namespace oauth-refresher || true
+        #kubectl apply -k ./prod
+    )
 }
 
 rand_32() {
@@ -34,7 +42,6 @@ rand_32() {
 }
 
 create_server_cert_letsencrypt() {
-    # TODO Error if DNS record is not pointing to ext ip
     certbot certonly --standalone $certbot_flags -d "$console_base_url_hostname"
     local cert_dir="/etc/letsencrypt/live/$console_base_url_hostname/"
     ls -l "$cert_dir"
@@ -47,9 +54,12 @@ create_server_cert_selfsigned() {
     cfssl selfsign localhost <(cfssl print-defaults csr) | cfssljson -bare prod/server
 }
 
-create_prod_overlay() {
+create_console_prod_overlay() {
     local overlay_dir="$dj_kubelet_repo_root/console/prod"
     mkdir -p "$overlay_dir"
+
+    create_server_cert_selfsigned
+    #create_server_cert_letsencrypt
 
     cat >"$overlay_dir/kustomization.yaml" <<EOF
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -92,11 +102,35 @@ spec:
             - --key-file=/etc/tls/tls.key
 EOF
 
-    # TODO only write these if missing
-    cat >>"$overlay_dir/envfile" <<EOF
-COOKIE_STORE_AUTH_KEY=$(rand_32)
-COOKIE_STORE_ENCRYPTION_KEY=$(rand_32)
+    if ! grep "^COOKIE_STORE_AUTH_KEY=" "$overlay_dir/envfile" >/dev/null; then
+        echo "COOKIE_STORE_AUTH_KEY=$(rand_32)" >>"$overlay_dir/envfile"
+    fi
+    if ! grep "^COOKIE_STORE_ENCRYPTION_KEY=" "$overlay_dir/envfile" >/dev/null; then
+        echo "COOKIE_STORE_ENCRYPTION_KEY=$(rand_32)" >>"$overlay_dir/envfile"
+    fi
+    # Create CLIENT_ID and CLIENT_SECRET in envfile before applying
+    if ! grep "^CLIENT_ID=" "./prod/envfile" >/dev/null; then
+        echo "CLIENT_ID missing"
+    fi
+    if ! grep "^CLIENT_SECRET=" "./prod/envfile" >/dev/null; then
+        echo "CLIENT_SECRET missing"
+    fi
+}
+
+create_oauth_refresher_prod_overlay() {
+    local overlay_dir="$dj_kubelet_repo_root/oauth-refresher/prod"
+    mkdir -p "$overlay_dir"
+    cat >"$overlay_dir/envfile" <<EOF
+AUTH_URL=https://accounts.spotify.com/authorize
+TOKEN_URL=https://accounts.spotify.com/api/token
 EOF
+    # Create CLIENT_ID and CLIENT_SECRET in envfile before applying
+    if ! grep "^CLIENT_ID=" "$overlay_dir/envfile" >/dev/null; then
+        echo "CLIENT_ID missing"
+    fi
+    if ! grep "^CLIENT_SECRET=" "$overlay_dir/envfile" >/dev/null; then
+        echo "CLIENT_SECRET missing"
+    fi
 }
 
 main
