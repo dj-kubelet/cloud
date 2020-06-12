@@ -105,27 +105,45 @@ EOF
         echo "COOKIE_STORE_ENCRYPTION_KEY=$(rand_32)" >>"$overlay_dir/envfile"
     fi
     # Create CLIENT_ID and CLIENT_SECRET in envfile before applying
-    if ! grep "^CLIENT_ID=" "./prod/envfile" >/dev/null; then
+    if ! grep "^CLIENT_ID=" "$overlay_dir/envfile" >/dev/null; then
         echo "CLIENT_ID missing"
+        if [ "$CLIENT_ID" != "" ]; then
+            echo "CLIENT_ID=$CLIENT_ID" >>"$overlay_dir/envfile"
+        fi
     fi
-    if ! grep "^CLIENT_SECRET=" "./prod/envfile" >/dev/null; then
+    if ! grep "^CLIENT_SECRET=" "$overlay_dir/envfile" >/dev/null; then
         echo "CLIENT_SECRET missing"
+        if [ "$CLIENT_SECRET" != "" ]; then
+            echo "CLIENT_SECRET=$CLIENT_SECRET" >>"$overlay_dir/envfile"
+        fi
     fi
 }
 
 create_oauth_refresher_prod_overlay() {
     local overlay_dir="$dj_kubelet_repo_root/oauth-refresher/prod"
     mkdir -p "$overlay_dir"
-    cat >"$overlay_dir/envfile" <<EOF
+    if ! grep "^AUTH_URL=" "$overlay_dir/envfile" >/dev/null; then
+        cat >>"$overlay_dir/envfile" <<EOF
 AUTH_URL=https://accounts.spotify.com/authorize
+EOF
+    fi
+    if ! grep "^TOKEN_URL=" "$overlay_dir/envfile" >/dev/null; then
+        cat >>"$overlay_dir/envfile" <<EOF
 TOKEN_URL=https://accounts.spotify.com/api/token
 EOF
+    fi
     # Create CLIENT_ID and CLIENT_SECRET in envfile before applying
     if ! grep "^CLIENT_ID=" "$overlay_dir/envfile" >/dev/null; then
         echo "CLIENT_ID missing"
+        if [ "$CLIENT_ID" != "" ]; then
+            echo "CLIENT_ID=$CLIENT_ID" >>"$overlay_dir/envfile"
+        fi
     fi
     if ! grep "^CLIENT_SECRET=" "$overlay_dir/envfile" >/dev/null; then
         echo "CLIENT_SECRET missing"
+        if [ "$CLIENT_SECRET" != "" ]; then
+            echo "CLIENT_SECRET=$CLIENT_SECRET" >>"$overlay_dir/envfile"
+        fi
     fi
 }
 
