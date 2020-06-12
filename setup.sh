@@ -23,7 +23,7 @@ install_docker() {
     apt-cache policy docker-ce
     apt-get install -y docker-ce
     systemctl status docker
-    usermod -aG docker "$USER"
+    #usermod -aG docker "$USER"
 }
 install_docker
 

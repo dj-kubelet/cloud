@@ -4,17 +4,35 @@ set -euo pipefail
 dj_kubelet_repo_root="/var/lib/dj-kubelet"
 console_base_url_hostname="console.dj-kubelet.com"
 apiserver_hostname="k8s.dj-kubelet.com"
-certbot_flags="--register-unsafely-without-email --no-eff-email"
+certbot_flags="--register-unsafely-without-email"
+
+CLIENT_ID="${CLIENT_ID:-}"
+echo "CLIENT_ID: $CLIENT_ID"
+if [ "$CLIENT_ID" == "" ]; then
+    echo "CLIENT_ID is empty"
+fi
+CLIENT_SECRET="${CLIENT_SECRET:-}"
+echo "CLIENT_SECRET: $CLIENT_SECRET"
+if [ "$CLIENT_SECRET" == "" ]; then
+    echo "CLIENT_SECRET is empty"
+fi
 
 main() {
     # Spin up Kubernetes with Kind
     kind create cluster --name dj-kubelet --config "$dj_kubelet_repo_root/cloud/kind-config.yaml" || true
 
     # TODO Error if DNS record is not pointing to ext ip
+    #metadata_token=$(curl -X PUT \
+    #    -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" \
+    #    "http://169.254.169.254/latest/api/token")
+    #curl -H "X-aws-ec2-metadata-token: $metadata_token" \
+    #    "http://169.254.169.254/latest/meta-data/public-ipv4"
+    #dig +short console.dj-kubelet.com
+    #dig +short k8s.dj-kubelet.com
 
     # Prep dj-controller CRDs and templates
     kubectl create namespace dj-controller || true
-    kubectl apply -n dj-controller -f "$dj_kubelet_repo_root/dj-controller/k8s/"
+    kubectl apply -k "$dj_kubelet_repo_root/dj-controller/prod"
 
     (
         # Deploy console
@@ -42,11 +60,12 @@ rand_32() {
 }
 
 create_server_cert_letsencrypt() {
-    certbot certonly --standalone $certbot_flags -d "$console_base_url_hostname"
+    certbot certonly --standalone --keep-until-expiring --no-eff-email --agree-tos $certbot_flags -d "$console_base_url_hostname"
+    certbot certificates
     local cert_dir="/etc/letsencrypt/live/$console_base_url_hostname/"
     ls -l "$cert_dir"
-    ln -s "$cert_dir/fullchain.pem" prod/server.pem
-    ln -s "$cert_dir/privkey.pem" prod/server-key.pem
+    ln -sf "$cert_dir/fullchain.pem" prod/server.pem
+    ln -sf "$cert_dir/privkey.pem" prod/server-key.pem
 
 }
 
@@ -60,29 +79,6 @@ create_console_prod_overlay() {
 
     create_server_cert_selfsigned
     #create_server_cert_letsencrypt
-
-    cat >"$overlay_dir/kustomization.yaml" <<EOF
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-bases:
-  - ../base
-
-namespace: console
-
-secretGenerator:
-- name: console
-  env: envfile
-  behavior: merge
-  type: Opaque
-- name: server-tls
-  type: "kubernetes.io/tls"
-  files:
-    - tls.crt=server.pem
-    - tls.key=server-key.pem
-
-patchesStrategicMerge:
-- deployment-patch.yaml
-EOF
 
     cat >"$overlay_dir/deployment-patch.yaml" <<EOF
 apiVersion: apps/v1

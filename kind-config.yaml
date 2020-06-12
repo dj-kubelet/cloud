@@ -26,5 +26,6 @@ kubeadmConfigPatches:
   apiServer:
     certSANs:
     - "127.0.0.1"
+    - "localhost"
     - "k8s.dj-kubelet.com"
-    - "k8s-local.dj-kubelet.com"
+    - "local-k8s.dj-kubelet.com"
