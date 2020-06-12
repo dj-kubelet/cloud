@@ -1,8 +1,8 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-#default_box = "ubuntu/focal64"
-default_box = "generic/ubuntu2004"
+default_box = "ubuntu/focal64"
+#default_box = "generic/ubuntu2004"
 default_memory = "2048"
 
 hosts = [
@@ -28,6 +28,8 @@ hosts.each do |host|
 
     node.vm.provider "virtualbox" do |vb|
       vb.memory = host.fetch(:memory, default_memory)
+      vb.cpus = 2
+      vb.customize ["modifyvm", :id, "--uartmode1", "file", File::NULL]
     end
 
     node.vm.provision "shell", path: "setup.sh"
