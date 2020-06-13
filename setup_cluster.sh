@@ -30,29 +30,23 @@ main() {
     #dig +short console.dj-kubelet.com
     #dig +short k8s.dj-kubelet.com
 
-    # Prep dj-controller CRDs and templates
+    # Add template dj-controller and CRDs
     kubectl create namespace dj-controller || true
     kubectl apply -k "$dj_kubelet_repo_root/dj-controller/prod"
 
-    (
-        # Deploy console
-        cd "$dj_kubelet_repo_root/console"
-        create_console_prod_overlay
-        kubectl create namespace console || true
-        #kubectl apply -k ./prod
-        #kubectl -n console get pods
+    # Deploy console
+    create_console_prod_overlay "$dj_kubelet_repo_root/console/prod"
+    kubectl create namespace console || true
+    #kubectl apply -k "$dj_kubelet_repo_root/console/prod"
+    #kubectl -n console get pods
+    # Forward apiserver
+    # socat TCP-LISTEN:6443,fork,bind=10.0.0.x TCP:127.0.0.1:6443 &
 
-        # Forward apiserver
-        # socat TCP-LISTEN:6443,fork,bind=10.0.0.x TCP:127.0.0.1:6443 &
-    )
-
-    (
-        # Deploy oauth-refresher
-        cd "$dj_kubelet_repo_root/oauth-refresher"
-        create_oauth_refresher_prod_overlay
-        kubectl create namespace oauth-refresher || true
-        #kubectl apply -k ./prod
-    )
+    # Deploy oauth-refresher
+    cd "$dj_kubelet_repo_root/oauth-refresher"
+    create_oauth_refresher_prod_overlay "$dj_kubelet_repo_root/oauth-refresher/prod"
+    kubectl create namespace oauth-refresher || true
+    #kubectl apply -k "$dj_kubelet_repo_root/oauth-refresher/prod"
 }
 
 rand_32() {
@@ -74,7 +68,7 @@ create_server_cert_selfsigned() {
 }
 
 create_console_prod_overlay() {
-    local overlay_dir="$dj_kubelet_repo_root/console/prod"
+    local overlay_dir="$1"
     mkdir -p "$overlay_dir"
 
     create_server_cert_selfsigned
@@ -120,7 +114,7 @@ EOF
 }
 
 create_oauth_refresher_prod_overlay() {
-    local overlay_dir="$dj_kubelet_repo_root/oauth-refresher/prod"
+    local overlay_dir="$1"
     mkdir -p "$overlay_dir"
     if ! grep "^AUTH_URL=" "$overlay_dir/envfile" >/dev/null; then
         cat >>"$overlay_dir/envfile" <<EOF
