@@ -34,6 +34,10 @@ main() {
     kubectl create namespace dj-controller || true
     kubectl apply -k "$dj_kubelet_repo_root/dj-controller/prod"
 
+    # Deploy dj-scheduler
+    kubectl create namespace dj-scheduler || true
+    kubectl apply -k "$dj_kubelet_repo_root/dj-scheduler/prod"
+
     # Deploy console
     create_console_prod_overlay "$dj_kubelet_repo_root/console/prod"
     kubectl create namespace console || true
