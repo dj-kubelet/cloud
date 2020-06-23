@@ -14,7 +14,8 @@ apt-get install -y \
     certbot \
     curl \
     git \
-    jq
+    jq \
+    socat
 
 install_docker() {
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
