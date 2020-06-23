@@ -58,25 +58,27 @@ rand_32() {
 }
 
 create_server_cert_letsencrypt() {
+    local overlay_dir="$1"
     certbot certonly --standalone --keep-until-expiring --no-eff-email --agree-tos $certbot_flags -d "$console_base_url_hostname"
     certbot certificates
     local cert_dir="/etc/letsencrypt/live/$console_base_url_hostname/"
     ls -l "$cert_dir"
-    ln -sf "$cert_dir/fullchain.pem" prod/server.pem
-    ln -sf "$cert_dir/privkey.pem" prod/server-key.pem
+    ln -sf "$cert_dir/fullchain.pem" "$overlay_dir/server.pem"
+    ln -sf "$cert_dir/privkey.pem" "$overlay_dir/server-key.pem"
 
 }
 
 create_server_cert_selfsigned() {
-    cfssl selfsign localhost <(cfssl print-defaults csr) | cfssljson -bare prod/server
+    local overlay_dir="$1"
+    cfssl selfsign localhost <(cfssl print-defaults csr) | cfssljson -bare "$overlay_dir/server"
 }
 
 create_console_prod_overlay() {
     local overlay_dir="$1"
     mkdir -p "$overlay_dir"
 
-    create_server_cert_selfsigned
-    #create_server_cert_letsencrypt
+    create_server_cert_selfsigned "$overlay_dir"
+    #create_server_cert_letsencrypt "$overlay_dir"
 
     cat >"$overlay_dir/deployment-patch.yaml" <<EOF
 apiVersion: apps/v1
