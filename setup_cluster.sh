@@ -41,8 +41,8 @@ main() {
     # Deploy console
     create_console_prod_overlay "$dj_kubelet_repo_root/console/prod"
     kubectl create namespace console || true
-    #kubectl apply -k "$dj_kubelet_repo_root/console/prod"
-    #kubectl -n console get pods
+    kubectl apply -k "$dj_kubelet_repo_root/console/prod"
+    kubectl -n console get pods
     # Forward apiserver
     # socat TCP-LISTEN:6443,fork,bind=10.0.0.x TCP:127.0.0.1:6443 &
 
@@ -50,7 +50,7 @@ main() {
     cd "$dj_kubelet_repo_root/oauth-refresher"
     create_oauth_refresher_prod_overlay "$dj_kubelet_repo_root/oauth-refresher/prod"
     kubectl create namespace oauth-refresher || true
-    #kubectl apply -k "$dj_kubelet_repo_root/oauth-refresher/prod"
+    kubectl apply -k "$dj_kubelet_repo_root/oauth-refresher/prod"
 }
 
 rand_32() {
