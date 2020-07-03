@@ -18,8 +18,17 @@ if [ "$CLIENT_SECRET" == "" ]; then
 fi
 
 main() {
-    # Spin up Kubernetes with Kind
-    kind create cluster --name dj-kubelet --config "$dj_kubelet_repo_root/cloud/kind-config.yaml" || true
+    if [[ "$1" == "kubeadm" ]]; then
+        kubeadm init --apiserver-cert-extra-sans "k8s.dj-kubelet.com,local-k8s.dj-kubelet.com" || true
+        mkdir -p "$HOME/.kube"
+        cp -f "/etc/kubernetes/admin.conf" "$HOME/.kube/config"
+        chown "$(id -u):$(id -g)" "$HOME/.kube/config"
+        kubectl taint nodes --all node-role.kubernetes.io/master-
+        kubectl create -f https://raw.githubusercontent.com/cilium/cilium/v1.8/install/kubernetes/quick-install.yaml
+
+    else
+        kind create cluster --name dj-kubelet --config "$dj_kubelet_repo_root/cloud/kind-config.yaml" || true
+    fi
 
     # TODO Error if DNS record is not pointing to ext ip
     #metadata_token=$(curl -X PUT \
@@ -147,4 +156,4 @@ EOF
     fi
 }
 
-main
+main "$@"

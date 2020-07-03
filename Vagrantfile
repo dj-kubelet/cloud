@@ -10,10 +10,10 @@ hosts = [
     "name": "node-0",
     "ip": "172.22.2.10",
   },
-  {
-    "name":"node-1",
-    "ip": "172.22.2.11",
-  },
+ # {
+ #   "name":"node-1",
+ #   "ip": "172.22.2.11",
+ # },
 ]
 
 Vagrant.configure("2") do |config|
@@ -32,7 +32,7 @@ hosts.each do |host|
       vb.customize ["modifyvm", :id, "--uartmode1", "file", File::NULL]
     end
 
-    node.vm.provision "shell", path: "setup.sh"
+    node.vm.provision "shell", path: "setup2.sh"
 
   end
 end
